@@ -193,7 +193,7 @@ class TicketView(SafeView):
         label, emoji = KINDS[kind]
         box = discord.ui.Container(accent_colour=COLOR)
         box.add_item(discord.ui.TextDisplay(
-            f'## {emoji} {label.upper()} • VENUS WORLD\n'
+            f'## {emoji} KÊNH {label.upper()}\n'
             f'Chào <@{owner_id}>! Hãy mô tả yêu cầu của bạn và đính kèm hình ảnh/video nếu có.\n\n'
             'Đội hỗ trợ sẽ phản hồi tại đây. Cảm ơn bạn đã chờ!\n'
             '-# Chỉ đội hỗ trợ được đóng ticket. Nội dung sẽ được lưu vào kênh backup.'

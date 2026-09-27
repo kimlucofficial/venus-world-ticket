@@ -102,3 +102,6 @@ Người mở ticket thường không nhìn thấy bảng nút riêng; họ nhì
 Discord không hỗ trợ ẩn từng nút theo role trong cùng một tin nhắn công khai.
 Tên slash command có thể xuất hiện trong danh sách lệnh của người thường;
 quyền sử dụng vẫn được kiểm tra ở server mỗi lần gọi/bấm.
+
+Tiêu đề trong ticket: KÊNH HỖ TRỢ / KÊNH BÁO LỖI / KÊNH DONATE.
+Áp dụng cho tin nhắn ticket tạo mới; tin nhắn đã gửi trước khi cập nhật không tự đổi.
