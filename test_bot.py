@@ -80,8 +80,8 @@ class BackupTests(unittest.IsolatedAsyncioTestCase):
         member.roles = [SimpleNamespace(id=1535493904000876614)]
         return member
 
-    async def test_owner_even_staff_cannot_close(self):
-        self.assertFalse(app.can_close(self.staff(True), 123))
+    async def test_staff_owner_can_close(self):
+        self.assertTrue(app.can_close(self.staff(True), 123))
         self.assertTrue(app.can_close(self.staff(), 123))
 
     async def test_backup_includes_content_and_attachment(self):
@@ -140,6 +140,46 @@ class BackupTests(unittest.IsolatedAsyncioTestCase):
             else:
                 self.assertIn('|closed|', edits[-1].kwargs['topic'])
                 channel.send.assert_awaited_once()
+
+class StaffControlTests(unittest.IsolatedAsyncioTestCase):
+    async def test_regular_owner_denied_admin_owner_allowed(self):
+        member = MagicMock(spec=discord.Member)
+        member.id = 123
+        member.roles = []
+        member.guild_permissions.administrator = False
+        self.assertFalse(app.can_close(member,123))
+        member.guild_permissions.administrator = True
+        self.assertTrue(app.can_close(member,123))
+
+    async def test_private_panel_and_icons(self):
+        panel=str(app.Panel().to_components())
+        for ident in ('1553623507810918410','1553624799266472006','1553623981909614723','1553623193082794058'):
+            self.assertIn(ident,panel)
+        self.assertIn('Vui lòng không spam ticket dưới mọi hình thức.',panel)
+        member=MagicMock(spec=discord.Member)
+        member.guild_permissions.administrator=True
+        i=SimpleNamespace(user=member,channel=SimpleNamespace(category_id=app.CATEGORY_ID,
+            topic='venus-ticket-v1|123|ht|open|99'),client=SimpleNamespace(user=SimpleNamespace(id=99)),
+            response=SimpleNamespace(send_message=AsyncMock()))
+        await app.ticket_staff.callback(i)
+        self.assertTrue(i.response.send_message.call_args.kwargs['ephemeral'])
+        self.assertIn('venus:staff:busy',str(i.response.send_message.call_args.kwargs['view'].to_components()))
+        self.assertNotIn('venus:staff:busy',str(app.TicketView().to_components()))
+
+    async def test_busy_button_sends_and_denies_regular_user(self):
+        app.locks.clear()
+        member=MagicMock(spec=discord.Member)
+        member.roles=[]
+        member.guild_permissions.administrator=False
+        channel=SimpleNamespace(category_id=app.CATEGORY_ID,topic='venus-ticket-v1|123|ht|open|99',send=AsyncMock())
+        i=SimpleNamespace(user=member,guild_id=5,channel_id=6,guild=SimpleNamespace(fetch_channel=AsyncMock(return_value=channel)),
+            client=SimpleNamespace(user=SimpleNamespace(id=99)),
+            response=SimpleNamespace(defer=AsyncMock(),is_done=lambda:True),followup=SimpleNamespace(send=AsyncMock()))
+        await app.BusyButton().callback(i)
+        channel.send.assert_not_awaited()
+        member.guild_permissions.administrator=True
+        await app.BusyButton().callback(i)
+        self.assertIn('Hiện tại BQT đang bận, cư dân vui lòng chờ sau ít phút.',channel.send.call_args.args[0])
 
 if __name__ == '__main__':
     unittest.main()

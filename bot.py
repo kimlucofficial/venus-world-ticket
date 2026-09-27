@@ -19,7 +19,7 @@ CATEGORY_ID = int(os.getenv('TICKET_CATEGORY_ID', '1531744347437924473'))
 STAFF_IDS = {int(x.strip()) for x in os.getenv('SUPPORT_ROLE_IDS', '1535493904000876614,1531744066218229830').split(',') if x.strip()}
 BACKUP_ID = int(os.getenv('BACKUP_CHANNEL_ID', '1553619054147797062'))
 COLOR = discord.Colour.from_rgb(225, 126, 214)
-KINDS = {'ht': ('Hỗ trợ', '💬'), 'fix': ('Báo lỗi', '🛠️'), 'dn': ('Donate', '💎')}
+KINDS = {'ht': ('Hỗ trợ', '<a:Manao18:1553623507810918410>'), 'fix': ('Báo lỗi', '<a:18212kittypaw22:1553624799266472006>'), 'dn': ('Donate', '<a:625725purplepresent:1553623981909614723>')}
 log = logging.getLogger('venus-ticket')
 locks: dict[int, asyncio.Lock] = {}
 
@@ -40,8 +40,8 @@ def is_staff(member):
 
 
 def can_close(member, owner_id):
-    # Even a staff member may not close their own ticket.
-    return member.id != owner_id and is_staff(member)
+    # Authorization depends on staff permissions, not ticket ownership.
+    return is_staff(member)
 
 
 async def export_backup(client, channel, data, closer):
@@ -133,11 +133,11 @@ class Panel(SafeView):
         box.add_item(discord.ui.TextDisplay(
             '## <:96359bubbleheart:1532387513031721101> TRUNG TÂM HỖ TRỢ\n'
             '<a:SaF_Bluerollingstar:1532586674952081519> **Venus World luôn sẵn sàng hỗ trợ bạn!**\n\n'
-            '💬 **Hỗ trợ** — Giải đáp thắc mắc, hỗ trợ trong thành phố.\n'
-            '🛠️ **Báo lỗi** — Gửi lỗi gặp phải kèm hình ảnh hoặc video.\n'
-            '💎 **Donate** — Tư vấn và hỗ trợ đóng góp cho Venus World.\n\n'
-            '**Chọn mục bên dưới để mở phòng trao đổi riêng.**\n'
-            '-# VENUS WORLD • Vui lòng không spam ticket.'
+            '<a:Manao18:1553623507810918410> **Hỗ trợ** — Giải đáp thắc mắc, hỗ trợ trong thành phố.\n'
+            '<a:18212kittypaw22:1553624799266472006> **Báo lỗi** — Gửi lỗi gặp phải kèm hình ảnh hoặc video.\n'
+            '<a:625725purplepresent:1553623981909614723> **Donate** — Tư vấn và hỗ trợ đóng góp cho Venus World.\n\n'
+            '<a:1357882491800911983:1553623193082794058> **Chọn mục bên dưới để mở phòng trao đổi riêng.**\n'
+            '-# Vui lòng không spam ticket dưới mọi hình thức.'
         ))
         box.add_item(discord.ui.ActionRow(*(OpenButton(kind) for kind in KINDS)))
         self.add_item(box)
@@ -153,10 +153,38 @@ class CloseButton(discord.ui.Button):
         if not data or data[3] != interaction.client.user.id or channel.category_id != CATEGORY_ID:
             return await tell(interaction, 'Đây không phải ticket của bot này.')
         if not can_close(interaction.user, data[0]):
-            return await tell(interaction, 'Chỉ HELPER / VTEAM hoặc Administrator được đóng; người mở không được tự đóng ticket.')
+            return await tell(interaction, 'Chỉ HELPER / VTEAM hoặc Administrator được đóng ticket.')
         if data[2] == 'closed':
             return await tell(interaction, 'Ticket đã đóng rồi.')
         await interaction.response.send_message('Xuất nội dung và file đính kèm sang kênh backup rồi đóng ticket?', view=ConfirmClose(channel.id), ephemeral=True)
+
+
+class BusyButton(discord.ui.Button):
+    def __init__(self):
+        super().__init__(label='BQT đang bận', emoji='⏳', style=discord.ButtonStyle.secondary,
+                         custom_id='venus:staff:busy')
+
+    async def callback(self, interaction):
+        if not is_staff(interaction.user):
+            return await tell(interaction, 'Chỉ HELPER / VTEAM hoặc Administrator được dùng nút này.')
+        await interaction.response.defer(ephemeral=True)
+        async with lock_for(interaction.guild_id):
+            channel = await interaction.guild.fetch_channel(interaction.channel_id)
+            data = metadata(channel)
+            if not data or data[3] != interaction.client.user.id or channel.category_id != CATEGORY_ID or data[2] != 'open':
+                return await tell(interaction, 'Nút này chỉ dùng trong ticket đang mở của bot.')
+            await channel.send('⏳ **Hiện tại BQT đang bận, cư dân vui lòng chờ sau ít phút.**',
+                               allowed_mentions=discord.AllowedMentions.none())
+            await tell(interaction, '✅ Đã gửi thông báo BQT đang bận vào ticket.')
+
+
+class StaffView(SafeView):
+    def __init__(self):
+        super().__init__(timeout=300)
+        box = discord.ui.Container(accent_colour=COLOR)
+        box.add_item(discord.ui.TextDisplay('## ĐIỀU KHIỂN TICKET\nBảng riêng dành cho HELPER / VTEAM / Administrator.'))
+        box.add_item(discord.ui.ActionRow(BusyButton(), CloseButton()))
+        self.add_item(box)
 
 
 class TicketView(SafeView):
@@ -328,6 +356,17 @@ async def ticket_setup(interaction: discord.Interaction):
         else:
             await panel.send(view=Panel(), file=file)
         await tell(interaction, f'✅ Bảng ticket đã sẵn sàng tại {panel.mention}.')
+
+
+@bot.tree.command(name='ticket_staff', description='Mở bảng nút riêng dành cho đội hỗ trợ')
+@app_commands.guild_only()
+async def ticket_staff(interaction: discord.Interaction):
+    if not is_staff(interaction.user):
+        return await tell(interaction, 'Chỉ HELPER / VTEAM hoặc Administrator được mở bảng này.')
+    data = metadata(interaction.channel)
+    if not data or data[3] != interaction.client.user.id or data[2] != 'open' or interaction.channel.category_id != CATEGORY_ID:
+        return await tell(interaction, 'Hãy dùng /ticket_staff trong ticket đang mở của bot.')
+    await interaction.response.send_message(view=StaffView(), ephemeral=True)
 
 
 @bot.tree.command(name='ticket_controls', description='Khôi phục nút đóng trong ticket hiện tại')

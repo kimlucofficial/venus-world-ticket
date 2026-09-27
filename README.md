@@ -35,9 +35,10 @@ Mỗi người chỉ có một ticket đang mở. Chống trùng còn hoạt đ�
 Chỉ chủ ticket, HELPER, VTEAM, bot và Administrator xem được ticket mới.
 Không kế thừa quyền category để tránh vô tình công khai ticket.
 
-Chỉ HELPER / VTEAM hoặc Administrator được đóng, và KHÔNG được đóng ticket
-chính mình mở. Kiểm tra quyền ở cả nút đóng lẫn nút xác nhận; người mở có thấy
-nút cũng không sử dụng được. Administrator vẫn có quyền quản lý kênh trực tiếp
+HELPER / VTEAM hoặc Administrator được đóng mọi ticket, kể cả ticket chính mình mở.
+Người dùng thường không được đóng. Kiểm tra quyền ở cả nút đóng lẫn nút xác nhận.
+Quyền staff xác định bằng hai role ID đã cấu hình hoặc quyền Administrator;
+không tự cấp quyền chỉ vì một role trang trí được xếp cao hơn HELPER. Administrator vẫn có quyền quản lý kênh trực tiếp
 trong Discord, bot không thể chặn quyền Administrator của nền tảng.
 Role cấu hình áp dụng khi tạo ticket mới. Ticket cũ có thể cần quản trị viên
 thêm quyền xem/gửi cho HELPER/VTEAM trong quyền kênh.
@@ -76,10 +77,28 @@ nhấn Đóng ticket lại để mở xác nhận mới.
 
 python3 -m unittest -v
 
-Đã qua 7 bài kiểm tra offline: Components V2/persistent buttons, tạo ba loại,
+Đã qua 10 bài kiểm tra offline: Components V2/persistent buttons, tạo ba loại,
 quyền riêng tư và chống trùng đồng thời, rollback khi tạo thiếu bảng, từ chối
-người ngoài/người mở kể cả staff đóng, xuất ZIP có text và bytes đính kèm,
-backup thành công mới đóng và khôi phục quyền khi backup thất bại.
+người dùng thường đóng, cho phép staff/admin đóng ticket tự mở, xuất ZIP có text và bytes đính kèm,
+backup thành công mới đóng và khôi phục quyền khi backup thất bại;
+4 emoji mới, bảng staff ephemeral và nút báo bận có kiểm tra quyền.
 Chưa đăng nhập chạy thử trên server thật. Bot yêu cầu Message Content Intent;
 nếu chưa bật trong Developer Portal, kết nối có thể báo lỗi privileged intents.
 API: https://discordpy.readthedocs.io/en/latest/api.html
+
+## Bản cập nhật icon và bảng staff
+
+Đã dùng ba emoji động bạn cung cấp cho Hỗ trợ/Báo lỗi/Donate trong nội dung và nút,
+icon động trước dòng Chọn mục và footer: Vui lòng không spam ticket dưới mọi hình thức.
+Sau khi thay source và Redeploy Railway, dùng /ticket_setup để cập nhật bảng cũ.
+Nếu emoji ở server khác, cấp quyền Use External Emojis cho bot khi cần.
+
+Trong ticket mở, HELPER/VTEAM/Administrator dùng /ticket_staff để hiện bảng nút
+riêng (ephemeral, chỉ người gọi thấy): BQT đang bận và Đóng ticket. Bảng hết hạn
+sau 5 phút hoặc khi bot restart; dùng lại lệnh để mở bảng mới.
+Nút báo bận gửi: Hiện tại BQT đang bận, cư dân vui lòng chờ sau ít phút.
+Người mở ticket thường không nhìn thấy bảng nút riêng; họ nhìn thấy thông báo
+được gửi sau khi staff bấm. Người thường thử lệnh cũng bị từ chối, không nhận bảng.
+Discord không hỗ trợ ẩn từng nút theo role trong cùng một tin nhắn công khai.
+Tên slash command có thể xuất hiện trong danh sách lệnh của người thường;
+quyền sử dụng vẫn được kiểm tra ở server mỗi lần gọi/bấm.
